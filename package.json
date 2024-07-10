@@ -1,4 +1,7 @@
 {
+  "engine":{
+  "node":"^18.20.4"
+},
   "dependencies": {
     "axios": "^1.7.2",
     "dotenv": "^16.4.5",
