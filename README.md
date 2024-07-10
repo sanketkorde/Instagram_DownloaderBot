@@ -17,7 +17,7 @@ Set up UptimeRobot:
 Go to UptimeRobot and sign up/log in.
 Add a new HTTP(s) monitor.
 Set the monitor type to HTTP(s).
-Enter your Repl.it server URL (e.g., https://your-repl-name.repl.co).
+(https://replit.com/@sanketkorde2004/IntraBot#index.js)
 Configure monitoring intervals and other settings as needed.
 UptimeRobot will monitor your bot's availability and alert you if it goes down.
 Usage
