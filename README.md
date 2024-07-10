@@ -1,6 +1,9 @@
 Instagram Downloader Telegram Bot
 This Telegram bot allows users to download media from Instagram using direct URLs. It is built with Node.js, utilizing the instagramdirct-url npm package for fetching content, Telegram Bot API for communication, Express for handling webhooks, and deployed on Repl.it for hosting with UptimeRobot for server monitoring.
 
+Bot Link
+You can access the Instagram Downloader Telegram Bot here(https://t.me/InstagramDownloadInstaBot).
+
 Features
 Download Instagram Media: Send direct URLs of Instagram posts, reels, IGTV videos, or profiles to the bot to download.
 Telegram Integration: Seamlessly interacts with users via Telegram's messaging platform.
