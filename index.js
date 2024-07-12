@@ -99,7 +99,7 @@ bot.on("message", async (msg) => {
             console.error("Error processing media:", error);
             bot.sendMessage(
                 chatId,
-                "Sorry, something went wrong while processing the media. Please try again with a different link.",
+               "We're currently experiencing technical issues with single-image posts. Please try a multi-image post or video, and we’ll resolve this as soon as possible. Thank you for your understanding!",
             );
         }
     } else {
