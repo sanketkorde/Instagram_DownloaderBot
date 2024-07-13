@@ -28,7 +28,7 @@ bot.on("message", async (msg) => {
     if (messageText.toLowerCase() === "/start") {
         bot.sendMessage(
             chatId,
-            "Welcome to Instra!\n Please send a Instagram video or image link.",
+            "Welcome to Instra! 🌟\n Please share an Instagram video or image link with us.",
         );
         return;
     }
