@@ -2,6 +2,7 @@ require('dotenv').config();
 const TelegramBot = require("node-telegram-bot-api");
 const axios = require("axios");
 const instagramUrlDirect = require("instagram-url-direct");
+const sharp = require("sharp");
 
 const express = require("express");
 const app = express();
@@ -13,9 +14,11 @@ const port = 3000;
 app.listen(port, () => {
     console.log("server is running on port 3000");
 });
+
 // Replace with your Telegram Bot API token
 const token = process.env.TOKEN;
 const bot = new TelegramBot(token, { polling: true });
+
 bot.on("message", async (msg) => {
     const chatId = msg.chat.id;
     const messageText = msg.text;
@@ -55,41 +58,33 @@ bot.on("message", async (msg) => {
 
             // Iterate through each URL and handle based on type (image or video)
             for (const url of directUrls.url_list) {
-                if (
-                    url.includes(".jpg") ||
-                    url.includes(".jpeg") ||
-                    url.includes(".png")
-                ) {
-                    // Handle image download
-                    const response = await axios({
-                        url: url,
-                        method: "GET",
-                        responseType: "stream",
-                    });
+                const response = await axios({
+                    url: url,
+                    method: "GET",
+                    responseType: "arraybuffer",
+                });
 
-                    console.log("Image downloaded successfully:", url);
+                if (url.includes(".jpg") || url.includes(".jpeg") || url.includes(".png")) {
+                    // Handle image download and convert to JPG
+                    const imageBuffer = await sharp(response.data)
+                        .jpeg()
+                        .toBuffer();
+
+                    console.log("Image converted to JPG successfully:", url);
 
                     // Send the image file with a caption
-                    await bot.sendPhoto(chatId, response.data, {
-                        caption:
-                            "Download from Instra Bot: \n@InstagramDownloadInstaBot",
+                    await bot.sendPhoto(chatId, imageBuffer, {
+                        caption: "Download from Instra Bot: \n@InstagramDownloadInstaBot",
                     });
 
                     console.log("Image and caption sent successfully:", url);
                 } else {
-                    // Handle video download (already implemented in your original code)
-                    const response = await axios({
-                        url: url,
-                        method: "GET",
-                        responseType: "stream",
-                    });
-
+                    // Handle video download
                     console.log("Video downloaded successfully:", url);
 
                     // Send the video file with a caption
                     await bot.sendVideo(chatId, response.data, {
-                        caption:
-                            "Download from Instra Bot: \n@InstagramDownloadInstaBot",
+                        caption: "Download from Instra Bot: \n@InstagramDownloadInstaBot",
                     });
 
                     console.log("Video and caption sent successfully:", url);
@@ -99,7 +94,7 @@ bot.on("message", async (msg) => {
             console.error("Error processing media:", error);
             bot.sendMessage(
                 chatId,
-                "We're currently experiencing technical issues with single-image posts that have songs attached. Please try a multi-image post or a video instead, and we'll resolve this as soon as possible. Thank you for your understanding!",
+                "We're currently experiencing technical issues, we'll resolve this as soon as possible. Thank you for your understanding!",
             );
         }
         return;
