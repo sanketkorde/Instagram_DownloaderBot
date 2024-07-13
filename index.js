@@ -53,13 +53,14 @@ bot.on("message", async (msg) => {
                 throw new Error("No direct URLs found");
             }
 
-            // Iterate through each URL and handle based on type (image or video)
-            for (const url of directUrls.url_list) {
-                if (
+            if (
                     url.includes(".jpg") ||
                     url.includes(".jpeg") ||
                     url.includes(".png")
                 ) {
+                // Iterate through each URL and handle based on type (image or video)
+            for (const url of directUrls.url_list) {
+                
                     // Handle image download
                     const response = await axios({
                         url: url,
@@ -76,7 +77,8 @@ bot.on("message", async (msg) => {
                     });
 
                     console.log("Image and caption sent successfully:", url);
-                } else {
+                }
+            }else {
                     // Handle video download (already implemented in your original code)
                     const response = await axios({
                         url: url,
@@ -93,6 +95,7 @@ bot.on("message", async (msg) => {
                     });
 
                     console.log("Video and caption sent successfully:", url);
+                return;
                 }
             }
         } catch (error) {
@@ -108,6 +111,5 @@ bot.on("message", async (msg) => {
             chatId,
             "Please send a valid Instagram video or image link.",
         );
-        return;
     }
 });
