@@ -28,7 +28,7 @@ bot.on("message", async (msg) => {
     if (messageText.toLowerCase() === "/start") {
         bot.sendMessage(
             chatId,
-            "Welcome to Instra! 🌟\n Please share an Instagram video or image link with us.",
+            "Welcome to Instra!\nSend me an Instagram video or image link to download it.",
         );
         return;
     }
@@ -53,14 +53,13 @@ bot.on("message", async (msg) => {
                 throw new Error("No direct URLs found");
             }
 
-            if (
+            // Iterate through each URL and handle based on type (image or video)
+            for (const url of directUrls.url_list) {
+                if (
                     url.includes(".jpg") ||
                     url.includes(".jpeg") ||
                     url.includes(".png")
                 ) {
-                // Iterate through each URL and handle based on type (image or video)
-            for (const url of directUrls.url_list) {
-                
                     // Handle image download
                     const response = await axios({
                         url: url,
@@ -77,8 +76,7 @@ bot.on("message", async (msg) => {
                     });
 
                     console.log("Image and caption sent successfully:", url);
-                }
-            }else {
+                } else {
                     // Handle video download (already implemented in your original code)
                     const response = await axios({
                         url: url,
@@ -95,13 +93,13 @@ bot.on("message", async (msg) => {
                     });
 
                     console.log("Video and caption sent successfully:", url);
-                return;
                 }
-            } catch (error) {
+            }
+        } catch (error) {
             console.error("Error processing media:", error);
             bot.sendMessage(
                 chatId,
-               "We're currently experiencing technical issues with single-image posts. Please try a multi-image post or video, and we’ll resolve this as soon as possible. Thank you for your understanding!",
+                "We're currently experiencing technical issues with single-image posts. Please try a multi-image post or video, and we’ll resolve this as soon as possible. Thank you for your understanding!",
             );
             return;
         }
