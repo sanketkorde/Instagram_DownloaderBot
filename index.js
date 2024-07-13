@@ -108,5 +108,6 @@ bot.on("message", async (msg) => {
             chatId,
             "Please send a valid Instagram video or image link.",
         );
+        return;
     }
 });
