@@ -101,8 +101,8 @@ bot.on("message", async (msg) => {
                 chatId,
                 "We're currently experiencing technical issues with single-image posts. Please try a multi-image post or video, and we’ll resolve this as soon as possible. Thank you for your understanding!",
             );
-            return;
         }
+        return;
     } else {
         bot.sendMessage(
             chatId,
