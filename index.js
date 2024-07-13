@@ -97,8 +97,7 @@ bot.on("message", async (msg) => {
                     console.log("Video and caption sent successfully:", url);
                 return;
                 }
-            }
-        } catch (error) {
+            } catch (error) {
             console.error("Error processing media:", error);
             bot.sendMessage(
                 chatId,
