@@ -3,7 +3,6 @@ const TelegramBot = require("node-telegram-bot-api");
 const axios = require("axios");
 const instagramUrlDirect = require("instagram-url-direct");
 const sharp = require("sharp");
-const fs = require("fs");
 
 const express = require("express");
 const app = express();
@@ -20,54 +19,13 @@ app.listen(port, () => {
 const token = process.env.TOKEN;
 const bot = new TelegramBot(token, { polling: true });
 
-const usersFilePath = './users.json';
-
-// Load or initialize the users file
-const loadUsers = () => {
-    if (fs.existsSync(usersFilePath)) {
-        const usersData = fs.readFileSync(usersFilePath);
-        return JSON.parse(usersData);
-    }
-    return [];
-};
-
-const saveUsers = (users) => {
-    fs.writeFileSync(usersFilePath, JSON.stringify(users, null, 2));
-};
-
-const addUser = (chatId) => {
-    const users = loadUsers();
-    if (!users.includes(chatId)) {
-        users.push(chatId);
-        saveUsers(users);
-    }
-};
-
-// Function to send an announcement to all users
-const announceUpdate = async (message) => {
-    const users = loadUsers();
-    for (const chatId of users) {
-        try {
-            await bot.sendMessage(chatId, message);
-            console.log(`Announcement sent to ${chatId}`);
-        } catch (error) {
-            console.error(`Failed to send announcement to ${chatId}:`, error);
-        }
-    }
-};
-
-// Uncomment this line to send an announcement when the bot starts
-// announceUpdate("The bot has been updated with new features!");
-
 bot.on("message", async (msg) => {
     const chatId = msg.chat.id;
     const messageText = msg.text;
-    const username = msg.from.username || 'there';
-
-    addUser(chatId);
+    const username = msg.from.username || 'unknown user';
 
     if (!messageText) {
-        console.log("Received empty message");
+        console.log("Received empty message from", username);
         return;
     }
 
