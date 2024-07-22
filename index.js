@@ -32,7 +32,7 @@ bot.on("message", async (msg) => {
     if (messageText.toLowerCase() === "/start") {
         bot.sendMessage(
             chatId,
-            `Welcome to Instra, ${username}!\nSend me an Instagram video or image link to download it.`,
+            `Welcome to Instra, @${username}!\nSend me an Instagram video or image link to download it.`,
         );
         return;
     }
