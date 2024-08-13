@@ -19,6 +19,10 @@ app.listen(port, () => {
 const token = process.env.TOKEN;
 const bot = new TelegramBot(token, { polling: true });
 
+// In-memory storage for user message counts and timestamps
+// For production, consider using a persistent storage solution like Redis
+const userRequests = {};
+
 bot.on("message", async (msg) => {
     const chatId = msg.chat.id;
     const messageText = msg.text;
@@ -29,21 +33,51 @@ bot.on("message", async (msg) => {
         return;
     }
 
-    if (messageText.toLowerCase() === "/start") {
+    // Current timestamp in milliseconds
+    const currentTime = Date.now();
+
+    // Check if the user has made requests
+    if (!userRequests[chatId]) {
+        userRequests[chatId] = {
+            count: 0,
+            timestamps: [],
+        };
+    }
+
+    // Filter out timestamps older than 24 hours
+    userRequests[chatId].timestamps = userRequests[chatId].timestamps.filter(
+        timestamp => currentTime - timestamp < 24 * 60 * 60 * 1000
+    );
+
+    // Update request count
+    const requestCount = userRequests[chatId].timestamps.length;
+
+    if (requestCount >= 10) {
         bot.sendMessage(
             chatId,
-            `Welcome to Instra, @${username}!\nSend me an Instagram video or image link to download it.`,
+            "You have reached the daily limit of 10 Instagram links. Please try again tomorrow."
         );
         return;
     }
 
-    // Check if message contains a valid Instagram post URL
+    if (messageText.toLowerCase() === "/start") {
+        bot.sendMessage(
+            chatId,
+            `Welcome to Instra, @${username}!\nSend me an Instagram video or image link to download it.`
+        );
+        return;
+    }
+
+    // Check if the message contains a valid Instagram post URL
     if (messageText.includes("instagram.com")) {
         try {
             console.log(`Received Instagram URL from ${username}: ${messageText}`);
 
-            // Inform user that the file is being processed
+            // Inform the user that the file is being processed
             bot.sendMessage(chatId, "Please wait, processing the file...");
+
+            // Add timestamp of the current request
+            userRequests[chatId].timestamps.push(currentTime);
 
             // Extract direct URLs (both images and videos) from Instagram post
             const directUrls = await instagramUrlDirect(messageText);
@@ -56,6 +90,9 @@ bot.on("message", async (msg) => {
             ) {
                 throw new Error("No direct URLs found");
             }
+
+            // Introduce a delay of 5 seconds
+            await new Promise(resolve => setTimeout(resolve, 5000));
 
             // Iterate through each URL and handle based on type (image or video)
             for (const url of directUrls.url_list) {
@@ -95,14 +132,14 @@ bot.on("message", async (msg) => {
             console.error(`Error processing media for ${username}:`, error);
             bot.sendMessage(
                 chatId,
-                "We're currently experiencing technical issues, we'll resolve this as soon as possible. Thank you for your understanding!",
+                "We're currently experiencing technical issues. We'll resolve this as soon as possible. Thank you for your understanding!"
             );
         }
         return;
     } else {
         bot.sendMessage(
             chatId,
-            "Please send a valid Instagram video or image link.",
+            "Please send a valid Instagram video or image link."
         );
     }
 });
