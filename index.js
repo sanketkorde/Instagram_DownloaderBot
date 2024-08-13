@@ -36,16 +36,19 @@ bot.on("message", async (msg) => {
         return;
     }
 
-    // Current timestamp in milliseconds
-    const currentTime = Date.now();
-
-    // Check if the user has made requests
+    // Initialize user requests if not present
     if (!userRequests[chatId]) {
         userRequests[chatId] = {
             count: 0,
             timestamps: [],
+            username: username
         };
+    } else {
+        userRequests[chatId].username = username; // Update username if it has changed
     }
+
+    // Current timestamp in milliseconds
+    const currentTime = Date.now();
 
     // Filter out timestamps older than 24 hours
     userRequests[chatId].timestamps = userRequests[chatId].timestamps.filter(
@@ -71,6 +74,39 @@ bot.on("message", async (msg) => {
         return;
     }
 
+    // Implementing the reset command for admins
+    if (messageText.startsWith("/reset") && admins.includes(username)) {
+        const parts = messageText.split(" ");
+        if (parts.length < 2) {
+            bot.sendMessage(chatId, "Please provide the username or chat ID to reset.");
+            return;
+        }
+
+        const target = parts[1].replace("@", ""); // Remove '@' if provided
+        let targetId = null;
+
+        // Find chat ID by username
+        for (const [id, data] of Object.entries(userRequests)) {
+            if (data.username === target || id === target) {
+                targetId = id;
+                break;
+            }
+        }
+
+        if (targetId) {
+            userRequests[targetId] = {
+                count: 0,
+                timestamps: [],
+                username: userRequests[targetId].username // Preserve the username
+            };
+            bot.sendMessage(chatId, `The usage limit for ${target} has been reset.`);
+            console.log(`Usage limit reset for ${target}.`);
+        } else {
+            bot.sendMessage(chatId, "User not found. Please check the username or chat ID.");
+        }
+        return;
+    }
+
     // Check if the message contains a valid Instagram post URL
     if (messageText.includes("instagram.com")) {
         try {
@@ -86,11 +122,7 @@ bot.on("message", async (msg) => {
             const directUrls = await instagramUrlDirect(messageText);
             console.log("Direct URLs:", directUrls);
 
-            if (
-                !directUrls ||
-                !directUrls.url_list ||
-                directUrls.url_list.length === 0
-            ) {
+            if (!directUrls || !directUrls.url_list || directUrls.url_list.length === 0) {
                 throw new Error("No direct URLs found");
             }
 
@@ -141,58 +173,9 @@ bot.on("message", async (msg) => {
         return;
     }
 
-    // Implementing the reset command for admins
-    if (messageText.startsWith("/reset") && admins.includes(username)) {
-        const parts = messageText.split(" ");
-        if (parts.length < 2) {
-            bot.sendMessage(chatId, "Please provide the username or chat ID to reset.");
-            return;
-        }
-
-        const target = parts[1].replace("@", ""); // Remove '@' if provided
-        let targetId = null;
-
-        // Find chat ID by username
-        for (const [id, data] of Object.entries(userRequests)) {
-            if (data.username === target || id === target) {
-                targetId = id;
-                break;
-            }
-        }
-
-        if (targetId) {
-            userRequests[targetId] = {
-                count: 0,
-                timestamps: [],
-                username: userRequests[targetId].username // Preserve the username
-            };
-            bot.sendMessage(chatId, `The usage limit for ${target} has been reset.`);
-            console.log(`Usage limit reset for ${target}.`);
-        } else {
-            bot.sendMessage(chatId, "User not found. Please check the username or chat ID.");
-        }
-        return;
-    }
-
     // If the message is not a command or a valid link, reply accordingly
     bot.sendMessage(
         chatId,
         "Please send a valid Instagram video or image link."
     );
-});
-
-// Update the user request data structure to include usernames
-bot.on("message", (msg) => {
-    const chatId = msg.chat.id;
-    const username = msg.from.username || 'unknown user';
-
-    if (!userRequests[chatId]) {
-        userRequests[chatId] = {
-            count: 0,
-            timestamps: [],
-            username: username
-        };
-    } else {
-        userRequests[chatId].username = username;
-    }
 });
