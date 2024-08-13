@@ -47,6 +47,9 @@ bot.on("message", async (msg) => {
         userRequests[chatId].username = username; // Update username if it has changed
     }
 
+    // Check if the user is an admin
+    const isAdmin = admins.includes(username);
+
     // Current timestamp in milliseconds
     const currentTime = Date.now();
 
@@ -58,7 +61,7 @@ bot.on("message", async (msg) => {
     // Update request count
     const requestCount = userRequests[chatId].timestamps.length;
 
-    if (requestCount >= 10) {
+    if (!isAdmin && requestCount >= 10) {
         bot.sendMessage(
             chatId,
             "You have reached the daily limit of 10 Instagram links. Please try again tomorrow."
@@ -75,7 +78,7 @@ bot.on("message", async (msg) => {
     }
 
     // Implementing the reset command for admins
-    if (messageText.startsWith("/reset") && admins.includes(username)) {
+    if (messageText.startsWith("/reset") && isAdmin) {
         const parts = messageText.split(" ");
         if (parts.length < 2) {
             bot.sendMessage(chatId, "Please provide the username or chat ID to reset.");
@@ -115,8 +118,10 @@ bot.on("message", async (msg) => {
             // Inform the user that the file is being processed
             bot.sendMessage(chatId, "Please wait, processing the file...");
 
-            // Add timestamp of the current request
-            userRequests[chatId].timestamps.push(currentTime);
+            // Add timestamp of the current request if not admin
+            if (!isAdmin) {
+                userRequests[chatId].timestamps.push(currentTime);
+            }
 
             // Extract direct URLs (both images and videos) from Instagram post
             const directUrls = await instagramUrlDirect(messageText);
