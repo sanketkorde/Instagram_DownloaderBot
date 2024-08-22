@@ -1,186 +1,115 @@
 require('dotenv').config();
 const TelegramBot = require("node-telegram-bot-api");
-const axios = require("axios");
 const instagramUrlDirect = require("instagram-url-direct");
-const sharp = require("sharp");
 const express = require("express");
 const app = express();
 
-app.get("/", (req, res) => {
-    res.send("hello");
-});
-
-const port =  8443;
-app.listen(port, () => {
-    console.log("server is running on port 3000");
-});
-
-// Replace with your Telegram Bot API token
 const token = process.env.TOKEN;
 const bot = new TelegramBot(token, { polling: true });
 
-// In-memory storage for user message counts and timestamps
-// For production, consider using a persistent storage solution like Redis
-const userRequests = {};
+app.get('/', function (req, res) {
+  res.send('Home');
+});
 
-// List of admin usernames or chat IDs
-const admins = ["sa_nket1"];
+// Store the link associated with each chat ID
+const userLinks = {};
 
 bot.on("message", async (msg) => {
     const chatId = msg.chat.id;
     const messageText = msg.text;
-    const username = msg.from.username || 'unknown user';
 
     if (!messageText) {
-        console.log("Received empty message from", username);
+        console.log(`Received empty message from chat ID: ${chatId}`);
         return;
     }
 
-    // Initialize user requests if not present
-    if (!userRequests[chatId]) {
-        userRequests[chatId] = {
-            count: 0,
-            timestamps: [],
-            username: username
-        };
-    } else {
-        userRequests[chatId].username = username; // Update username if it has changed
-    }
-
-    // Check if the user is an admin
-    const isAdmin = admins.includes(username);
-
-    // Current timestamp in milliseconds
-    const currentTime = Date.now();
-
-    // Filter out timestamps older than 24 hours
-    userRequests[chatId].timestamps = userRequests[chatId].timestamps.filter(
-        timestamp => currentTime - timestamp < 24 * 60 * 60 * 1000
-    );
-
-    // Update request count
-    const requestCount = userRequests[chatId].timestamps.length;
-
-    if (!isAdmin && requestCount >= 10) {
-        bot.sendMessage(
-            chatId,
-            "You have reached the daily limit of 10 Instagram links. Please try again tomorrow."
+    if (messageText === "/start") {
+        bot.sendMessage(chatId, 
+            `Welcome to Instra,\nSend me an Instagram video or image link to download it.`
         );
         return;
     }
 
-    if (messageText.toLowerCase() === "/start") {
-        bot.sendMessage(
-            chatId,
-            `Welcome to Instra, @${username}!\nSend me an Instagram video or image link to download it.`
-        );
-        return;
-    }
-
-    // Implementing the reset command for admins
-    if (messageText.startsWith("/reset") && isAdmin) {
-        const parts = messageText.split(" ");
-        if (parts.length < 2) {
-            bot.sendMessage(chatId, "Please provide the username or chat ID to reset.");
-            return;
-        }
-
-        const target = parts[1].replace("@", ""); // Remove '@' if provided
-        let targetId = null;
-
-        // Find chat ID by username
-        for (const [id, data] of Object.entries(userRequests)) {
-            if (data.username === target || id === target) {
-                targetId = id;
-                break;
-            }
-        }
-
-        if (targetId) {
-            userRequests[targetId] = {
-                count: 0,
-                timestamps: [],
-                username: userRequests[targetId].username // Preserve the username
-            };
-            bot.sendMessage(chatId, `The usage limit for ${target} has been reset.`);
-            console.log(`Usage limit reset for ${target}.`);
-        } else {
-            bot.sendMessage(chatId, "User not found. Please check the username or chat ID.");
-        }
-        return;
-    }
-
-    // Check if the message contains a valid Instagram post URL
     if (messageText.includes("instagram.com")) {
-        try {
-            console.log(`Received Instagram URL from ${username}: ${messageText}`);
+        // Store the Instagram link in the userLinks object
+        userLinks[chatId] = messageText;
 
-            // Inform the user that the file is being processed
-            bot.sendMessage(chatId, "Please wait, processing the file...");
-
-            // Add timestamp of the current request if not admin
-            if (!isAdmin) {
-                userRequests[chatId].timestamps.push(currentTime);
+        // Define inline keyboard buttons
+        const options = {
+            reply_markup: {
+                inline_keyboard: [
+                    [
+                        { text: "Video", callback_data: "video" },
+                        { text: "Image", callback_data: "image" },
+                        { text: "Both", callback_data: "both" }
+                    ]
+                ]
             }
+        };
+    
+        // Send the message with inline keyboard
+        bot.sendMessage(chatId, "Please select the type of content:", options);
+    }
+});
 
-            // Extract direct URLs (both images and videos) from Instagram post
-            const directUrls = await instagramUrlDirect(messageText);
-            console.log("Direct URLs:", directUrls);
+// Handle the callback query
+bot.on("callback_query", async (callbackQuery) => {
+    const chatId = callbackQuery.message.chat.id;
+    const callbackData = callbackQuery.data; // 'video', 'image', or 'both'
 
-            if (!directUrls || !directUrls.url_list || directUrls.url_list.length === 0) {
-                throw new Error("No direct URLs found");
-            }
+    // Answer the callback query immediately to avoid timeout issues
+    bot.answerCallbackQuery(callbackQuery.id);
 
-            // Introduce a delay of 5 seconds
-            await new Promise(resolve => setTimeout(resolve, 5000));
-
-            // Iterate through each URL and handle based on type (image or video)
-            for (const url of directUrls.url_list) {
-                const response = await axios({
-                    url: url,
-                    method: "GET",
-                    responseType: "arraybuffer",
-                });
-
-                if (url.includes(".jpg") || url.includes(".jpeg") || url.includes(".png")) {
-                    // Handle image download and convert to JPG
-                    const imageBuffer = await sharp(response.data)
-                        .jpeg()
-                        .toBuffer();
-
-                    console.log(`Image converted to JPG successfully from ${username}: ${url}`);
-
-                    // Send the image file with a caption
-                    await bot.sendPhoto(chatId, imageBuffer, {
-                        caption: "Download from Instra Bot: \n@InstagramDownloadInstaBot",
-                    });
-
-                    console.log(`Image and caption sent successfully to ${username}: ${url}`);
-                } else {
-                    // Handle video download
-                    console.log(`Video downloaded successfully from ${username}: ${url}`);
-
-                    // Send the video file with a caption
-                    await bot.sendVideo(chatId, response.data, {
-                        caption: "Download from Instra Bot: \n@InstagramDownloadInstaBot",
-                    });
-
-                    console.log(`Video and caption sent successfully to ${username}: ${url}`);
-                }
-            }
-        } catch (error) {
-            console.error(`Error processing media for ${username}:`, error);
-            bot.sendMessage(
-                chatId,
-                "We're currently experiencing technical issues. We'll resolve this as soon as possible. Thank you for your understanding!"
-            );
-        }
+    // Retrieve the stored Instagram link for this chat ID
+    const messageText = userLinks[chatId];
+    
+    if (!messageText) {
+        bot.sendMessage(chatId, "Something went wrong. Please send the link again.");
         return;
     }
 
-    // If the message is not a command or a valid link, reply accordingly
-    bot.sendMessage(
-        chatId,
-        "Please send a valid Instagram video or image link."
-    );
+    bot.sendMessage(chatId, "Please wait for a moment...");
+
+    try {
+        let data = await instagramUrlDirect(messageText);
+
+        if (callbackData === "video") {
+            // Send only videos
+            for (const url of data.url_list) {
+                await bot.sendVideo(chatId, url, { caption: "Here's your video!" });
+            }
+        } else if (callbackData === "image") {
+            // Send only images
+            for (const url of data.url_list) {
+                await bot.sendPhoto(chatId, url, { caption: "Here's your image!" });
+            }
+        } else if (callbackData === "both") {
+            // Send both videos and images
+            for (const url of data.url_list) {
+                await bot.sendVideo(chatId, url);
+            }
+        }
+        
+        // Wait for 10 seconds before allowing another request
+        await new Promise(resolve => setTimeout(resolve, 10000));
+
+    } catch (error) {
+        console.error(`Error processing Instagram link for chat ID: ${chatId}`, error);
+
+        // Improved error messages based on the type of error
+        if (error.message.includes("404")) {
+            bot.sendMessage(chatId, "The provided link is invalid or the content has been removed.");
+        } else if (error.message.includes("timeout")) {
+            bot.sendMessage(chatId, "The request timed out. Please try again later.");
+        } else {
+            bot.sendMessage(chatId, "There was an error processing your request. Please try again.");
+        }
+    }
+
+    // Clear the stored link after processing
+    delete userLinks[chatId];
+});
+
+app.listen(3000, () => {
+    console.log("Listening on port 3000...");
 });
