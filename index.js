@@ -5,6 +5,12 @@ const express = require("express");
 const app = express();
 
 const token = process.env.TOKEN;
+
+if (!token) {
+    console.error('Telegram bot token is missing. Please set the TOKEN environment variable.');
+    process.exit(1);
+}
+
 const bot = new TelegramBot(token, { polling: true });
 
 app.get('/', function (req, res) {
@@ -17,6 +23,8 @@ const userLinks = {};
 bot.on("message", async (msg) => {
     const chatId = msg.chat.id;
     const messageText = msg.text;
+    const userName = msg.from.first_name;  // Get the user's first name
+    const userLastName = msg.from.last_name || ''; // Get the user's last name (if available)
 
     if (!messageText) {
         console.log(`Received empty message from chat ID: ${chatId}`);
@@ -25,7 +33,7 @@ bot.on("message", async (msg) => {
 
     if (messageText === "/start") {
         bot.sendMessage(chatId, 
-            `Welcome to Instra,\nSend me an Instagram video or image link to download it.`
+            `Welcome to Instra, ${userName}!\nSend me an Instagram video or image link to download it.`
         );
         return;
     }
@@ -33,6 +41,9 @@ bot.on("message", async (msg) => {
     if (messageText.includes("instagram.com")) {
         // Store the Instagram link in the userLinks object
         userLinks[chatId] = messageText;
+
+        // Log user information and the link
+        console.log(`User: ${userName} ${userLastName} (Chat ID: ${chatId}) wants to download: ${messageText}`);
 
         // Define inline keyboard buttons
         const options = {
@@ -97,10 +108,12 @@ bot.on("callback_query", async (callbackQuery) => {
         console.error(`Error processing Instagram link for chat ID: ${chatId}`, error);
 
         // Improved error messages based on the type of error
-        if (error.message.includes("404")) {
+        if (error.response && error.response.status === 404) {
             bot.sendMessage(chatId, "The provided link is invalid or the content has been removed.");
-        } else if (error.message.includes("timeout")) {
+        } else if (error.code === 'ETIMEDOUT' || error.code === 'ECONNABORTED') {
             bot.sendMessage(chatId, "The request timed out. Please try again later.");
+        } else if (error.response && error.response.status === 500) {
+            bot.sendMessage(chatId, "There was an issue with the server. Please try again later.");
         } else {
             bot.sendMessage(chatId, "There was an error processing your request. Please try again.");
         }
