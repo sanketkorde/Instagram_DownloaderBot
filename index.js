@@ -1,6 +1,7 @@
 require('dotenv').config();
 const TelegramBot = require("node-telegram-bot-api");
 const instagramUrlDirect = require("instagram-url-direct");
+const axios = require("axios");
 const express = require("express");
 const app = express();
 
@@ -19,6 +20,48 @@ app.get('/', function (req, res) {
 
 // Store the link associated with each chat ID
 const userLinks = {};
+
+// Delay utility function
+const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+// Error handling function
+function handleInstagramError(error, chatId) {
+    if (error.response && error.response.status === 429) {
+        bot.sendMessage(chatId, "Too many requests. Please wait a moment and try again.");
+    } else if (error.response && error.response.status === 404) {
+        bot.sendMessage(chatId, "The provided link is invalid or the content has been removed.");
+    } else if (error.code === 'ETIMEDOUT' || error.code === 'ECONNABORTED') {
+        bot.sendMessage(chatId, "The request timed out. Please try again later.");
+    } else if (error.response && error.response.status === 500) {
+        bot.sendMessage(chatId, "There was an issue with the server. Please try again later.");
+    } else {
+        bot.sendMessage(chatId, "There was an error processing your request. Please try again.");
+    }
+    console.error(`Error processing Instagram link for chat ID: ${chatId}`, error);
+}
+
+// Function to process Instagram link
+async function processInstagramLink(messageText, chatId, callbackData) {
+    try {
+        let data = await instagramUrlDirect(messageText);
+        console.log(data);
+        
+        for (const url of data.url_list) {
+            if (callbackData === "video") {
+                await bot.sendVideo(chatId, url, { caption: "Here's your video!" });
+            } else if (callbackData === "image") {
+                await bot.sendPhoto(chatId, url, { caption: "Here's your image!" });
+            } else if (callbackData === "both") {
+                await bot.sendVideo(chatId, url);
+            }
+            await delay(1000); // Adding delay between each request
+        }
+        
+        await delay(10000); // 10-second delay after processing the link
+    } catch (error) {
+        handleInstagramError(error, chatId);
+    }
+}
 
 bot.on("message", async (msg) => {
     const chatId = msg.chat.id;
@@ -80,44 +123,7 @@ bot.on("callback_query", async (callbackQuery) => {
     }
 
     bot.sendMessage(chatId, "Please wait for a moment...");
-
-    try {
-        let data = await instagramUrlDirect(messageText);
-
-        if (callbackData === "video") {
-            // Send only videos
-            for (const url of data.url_list) {
-                await bot.sendVideo(chatId, url, { caption: "Here's your video!" });
-            }
-        } else if (callbackData === "image") {
-            // Send only images
-            for (const url of data.url_list) {
-                await bot.sendPhoto(chatId, url, { caption: "Here's your image!" });
-            }
-        } else if (callbackData === "both") {
-            // Send both videos and images
-            for (const url of data.url_list) {
-                await bot.sendVideo(chatId, url);
-            }
-        }
-        
-        // Wait for 10 seconds before allowing another request
-        await new Promise(resolve => setTimeout(resolve, 10000));
-
-    } catch (error) {
-        console.error(`Error processing Instagram link for chat ID: ${chatId}`, error);
-
-        // Improved error messages based on the type of error
-        if (error.response && error.response.status === 404) {
-            bot.sendMessage(chatId, "The provided link is invalid or the content has been removed.");
-        } else if (error.code === 'ETIMEDOUT' || error.code === 'ECONNABORTED') {
-            bot.sendMessage(chatId, "The request timed out. Please try again later.");
-        } else if (error.response && error.response.status === 500) {
-            bot.sendMessage(chatId, "There was an issue with the server. Please try again later.");
-        } else {
-            bot.sendMessage(chatId, "There was an error processing your request. Please try again.");
-        }
-    }
+    await processInstagramLink(messageText, chatId, callbackData);
 
     // Clear the stored link after processing
     delete userLinks[chatId];
